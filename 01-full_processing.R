@@ -39,7 +39,7 @@ merge_stats(metadata)
 
 
 ## Create summarystats
-read_csv("outputs/tables/ILP_001_20180302_0702-to-ILP_003_20180324_0529_METADATA.csv") %>% 
+read_csv("outputs/tables/ILP_001_20180302_0702-to-ILP_002_20180302_0702_METADATA.csv") %>% 
           janitor::clean_names() %>%  
           select(-hora_de_inicio, hora_final) %>%  
           mutate(ganancia = captura_kg*precio) %>% 
@@ -52,7 +52,7 @@ read_csv("outputs/tables/ILP_001_20180302_0702-to-ILP_003_20180324_0529_METADATA
 
 ### VIZ
 
-shape <- st_read("outputs/shp/ILP_001_20180302_0702-to-ILP_005_20180323_0535_METADATA.gpkg")
+shape <- st_read("outputs/shp/ILP_001_20180302_0702-to-PA_20180427_0539_METADATA.gpkg")
 
 library(dafishr)
 
