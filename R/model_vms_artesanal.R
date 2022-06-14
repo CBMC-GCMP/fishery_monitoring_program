@@ -1,30 +1,23 @@
 
-model_vms_artesanal <- function(path) {
+model_vms_artesanal <- function(x) {
           
-          df <- read_csv(path) %>%
-                    filter(!is.na(speed)) 
+          df <- x %>%
+                    filter(!is.na(velocidad)) 
           
-          at_sea <-  df %>% 
-                    dplyr::filter(.data$location == "at_sea") %>%
-                    dplyr::select(.data$ID, .data$speed)
-          
-                    
+        
           out <- return(tryCatch(
                     {
-                              EM_all <- mixtools::normalmixEM(at_sea$speed,
+                              EM_all <- mixtools::normalmixEM(df$velocidad,
                                                               mu = c(10, 20, 30),
                                                               sigma = c(1, 1, 1)
                               )
                               
                               speed_threshold_EM <- EM_all$mu[1] + 1.96 * EM_all$sigma[1]
-                              at_sea$behaviour <- ifelse(at_sea$speed < speed_threshold_EM,
+                              df$behaviour <- ifelse(df$velocidad < speed_threshold_EM,
                                                          "hauling", "not_hauling"
                               )
-                              at_sea <- dplyr::select(at_sea, -.data$speed)
-                              
-                              res <- merge(df, at_sea, by = "ID", all.x = T) %>%
-                                        dplyr::mutate(vessel_state = ifelse(.data$location == "at_port", "at_port", .data$behaviour)) %>%
-                                        dplyr::mutate(vessel_state = ifelse(.data$vessel_state == "at_port" & .data$speed > 0, "not_hauling", .data$vessel_state)) %>%
+
+                              res <- df %>%
                                         dplyr::mutate(model_type = "three_states")
                               
                               return(res)
@@ -32,32 +25,27 @@ model_vms_artesanal <- function(path) {
                     error = function(test) {
                               message(paste("Test two state basic parameter \n"))
                               
-                              EM_all <- mixtools::normalmixEM(at_sea$speed,
+                              EM_all <- mixtools::normalmixEM(df$velocidad,
                                                               mu = c(5, 15),
                                                               sigma = c(1, 1)
                               )
                               
                               speed_threshold_EM <- EM_all$mu[1] + 1.96 * EM_all$sigma[1]
-                              at_sea$behaviour <- ifelse(at_sea$speed < speed_threshold_EM,
+                              df$behaviour <- ifelse(df$velocidad < speed_threshold_EM,
                                                          "hauling", "not_hauling"
                               )
-                              at_sea <- dplyr::select(at_sea, -.data$speed)
-                              
-                              test <- merge(df, at_sea, by = "ID", all.x = T) %>%
-                                        dplyr::mutate(vessel_state = ifelse(.data$location == "at_port", "at_port", .data$behaviour)) %>%
-                                        dplyr::mutate(vessel_state = ifelse(.data$vessel_state == "at_port" & .data$speed > 0, "not_hauling", .data$vessel_state)) %>%
+
+                              test <- df %>% 
                                         dplyr::mutate(model_type = "two_states") 
                               return(test)
                     },
                     error = function(cond) {
                               message(paste("Parameters failed, using manual threshold:", "\n"))
                               
-                              df$behaviour <- ifelse(df$speed < 2,
+                              df$behaviour <- ifelse(df$velocidad < 2,
                                                      "hauling", "not_hauling")
                               test <- df %>%
-                                        dplyr::mutate(behaviour = "not_modelled", vessel_state = "not_modelled", model_type = "manual_threshold") %>%
-                                        dplyr::mutate(vessel_state = ifelse(.data$vessel_state != "at_port" & .data$speed < 5, "hauling", "not_hauling"))
-                              
+                                        dplyr::mutate(behaviour = "not_modelled", model_type = "manual_threshold") 
                               # Choose a return value in case of error
                               return(test)
                     }
