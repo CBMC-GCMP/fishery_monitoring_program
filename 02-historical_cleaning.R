@@ -1,10 +1,10 @@
 library(tidyverse)
 
-file_list <- list.files("Trackers_comunidades/", 
+file_list <- list.files("data/Trackers_comunidades/", 
            recursive = TRUE, full.names = TRUE,
            pattern = ".xlsx") %>%  
       as.data.frame() %>% 
-      filter(str_detect(., "MARGARITA", negate = T)) %>% 
+      #filter(str_detect(., "MARGARITA", negate = T)) %>% 
       pull(.)
 
 
@@ -18,9 +18,36 @@ meta_tocorrect <- metadata %>%
 write_csv(meta_tocorrect,
                  file = "metadata_tocorrect_file.csv")
 
+csv_all <- metadata %>% 
+      select(IDViaje, Numero_tracker_meta = Numero_tracker, Region, Comunidad_meta = Comunidad) %>% 
+      unique()
+
+
+csv_tracks <- list.files("data/Trackers_comunidades/", 
+                         recursive = TRUE, full.names = TRUE,
+                         pattern = ".csv") %>% 
+      as.data.frame() %>% 
+      rename(path = ".") %>% 
+      mutate(IDViaje = str_remove_all(basename(path), ".csv"), 
+             Numero_tracker_file = basename(dirname(path)), 
+             Comunidad_file = str_remove_all(basename(dirname(dirname(path))), "USB")) %>% 
+      mutate(Comunidad_file = str_remove_all(Comunidad_file, "Trackers "))
+      
+glimpse(csv_all)
+glimpse(csv_tracks)
+# 
+# merged <- merge(csv_tracks, csv_all, by = c("IDViaje"), all.x = T) %>% 
+#       mutate(toclean = ifelse(str_detect(IDViaje, "export"), "YES", "NO")) %>% 
+#       mutate(exists_in_meta = ifelse(is.na(Numero_tracker_meta), "NO", "YES"))
+# 
+# merged %>% 
+#       group_by(toclean, exists_in_meta) %>% 
+#       count()
+
+
 # GPS tracks --------------------------------------------------------------
 
-file_list <- list.files("Trackers_comunidades/", 
+file_list <- list.files("data/Trackers_comunidades/", 
                         recursive = TRUE, full.names = TRUE,
                         pattern = ".csv") %>%  
       as.data.frame() %>% 
@@ -28,7 +55,7 @@ file_list <- list.files("Trackers_comunidades/",
       pull(.)
 
 ## Loading shapefile of Mexico
-load("data/mx_shape.RData")
+mx_shape <- sf::read_sf("data/capa_costa_trackers/lcosta_gc_wvs_utm.shp")
 
 
 # Set the path to metadata file
@@ -37,16 +64,25 @@ metadata <- "metadata_tocorrect_file.csv"
 # Loading functions
 lapply(list.files("R/", pattern = ".R", full.names = T), source)
 
+# 
+# library(future.apply)
+# plan(multisession, workers = 10) ## Run in parallel on local computer
 
 # Clean file names
-invisible(lapply(file_list, change_file_name_csv, metadata))
+#invisible(future_lapply(file_list, change_file_name_csv, metadata, future.seed=TRUE))
+
+lapply(file_list, change_file_name_csv, metadata)
+beepr::beep()
 
 
 # Cleaning land points
 
-file_list <- list.files("preprocessed/", recursive = T, full.names = T)
+file_list <- list.files("cleaned_csv/", recursive = T, full.names = T)
+library(future.apply)
+plan(multisession, workers = 4) ## Run in parallel on local computer
 
-cleaned <- lapply(file_list, clean_land_points, mx_shape)
+cleaned <- future_lapply(file_list, clean_land_points, mx_shape, future.seed=TRUE)
+#cleaned <- lapply(file_list, clean_land_points, mx_shape)
 
 
 ## Exporting point shapefiles
